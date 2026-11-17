@@ -36,3 +36,13 @@ describe("mock data matches the shared schemas", () => {
     expect(() => SourcesResponse.parse(mock.mockSourcesResponse)).not.toThrow();
   });
 });
+
+describe("suggestListing (shared by server and mock)", () => {
+  it("applies the condition ratio and returns a valid response", async () => {
+    const { ListingAssistResponse } = await import("./api.js");
+    const a = ListingAssistResponse.parse(mock.mockListingAssist("sv2a-201", "A"));
+    const d = ListingAssistResponse.parse(mock.mockListingAssist("sv2a-201", "D"));
+    expect(d.suggestedPrice).toBe(Math.round((a.suggestedPrice * 0.5) / 10) * 10);
+    expect(mock.mockListingAssist("nope", "A")).toBeNull();
+  });
+});

@@ -46,7 +46,13 @@ function resolveCardId(card: RawObservation["card"]): string {
 export async function runCollect(
   db: Db,
   collectorList: Collector[],
-  opts: { now?: Date; fetcher?: PoliteFetcher; log?: (msg: string) => void } = {},
+  opts: {
+    now?: Date;
+    fetcher?: PoliteFetcher;
+    log?: (msg: string) => void;
+    /** true なら今回観測のなかったカードも含め、全カードの集計を作り直す（古い相場が残らないように） */
+    refreshAllSummaries?: boolean;
+  } = {},
 ): Promise<CollectorReport[]> {
   const now = opts.now ?? new Date();
   const log = opts.log ?? ((m) => console.log(m));
@@ -120,8 +126,10 @@ export async function runCollect(
     );
   }
 
-  const cardIds = [...touchedCards];
-  await recomputeDaily(db, cardIds, [...touchedDates]);
-  await recomputeSummaries(db, cardIds, now);
+  await recomputeDaily(db, [...touchedCards], [...touchedDates]);
+  const summaryTargets = opts.refreshAllSummaries ? [...knownCards] : [...touchedCards];
+  for (let i = 0; i < summaryTargets.length; i += 1000) {
+    await recomputeSummaries(db, summaryTargets.slice(i, i + 1000), now);
+  }
   return reports;
 }

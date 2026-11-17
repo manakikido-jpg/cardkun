@@ -6,6 +6,6 @@ import { runCollect } from "../jobs/collect.js";
 const handle = createDbFromEnv();
 await handle.migrate();
 if (collectors.length === 0) console.log("[collect] no collectors registered (see src/collectors/registry.ts)");
-const reports = await runCollect(handle.db, collectors);
+const reports = await runCollect(handle.db, collectors, { refreshAllSummaries: true });
 await handle.close();
 if (reports.some((r) => r.error)) process.exitCode = 1;
