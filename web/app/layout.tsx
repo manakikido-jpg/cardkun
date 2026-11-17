@@ -21,7 +21,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               ▱
             </span>
             <span className="brand-name">
-              cardkun<small>ポケカ相場ノート</small>
+              cardkun<small>ポケモンカード相場</small>
             </span>
           </Link>
           <Link className="header-search" href="/">
@@ -37,7 +37,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
         <footer>
-          cardkun · 相場を知って、納得の一枚を。
+          cardkun / ポケモンカード相場
           <br />
           価格は参考情報です。状態・更新日時もあわせてご確認ください。
         </footer>

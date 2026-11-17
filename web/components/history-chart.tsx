@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { CardHistoryResponse, PriceType } from "@cardkun/shared";
 import { labels, yen } from "../lib/format";
-const colors = ["#116855", "#c27613", "#5668bd", "#b65085", "#607785"];
+const colors = ["#74d8e4", "#e9b86f", "#a5b6fa", "#e6a6cb", "#9cadb8"];
 export function HistoryChart({
   histories,
 }: {
@@ -18,7 +18,7 @@ export function HistoryChart({
     high = Math.max(...values) * 1.05;
   const types = [...new Set(history.points.map((p) => p.priceType))];
   const x = (date: string) =>
-    85 + (dates.indexOf(date) / Math.max(dates.length - 1, 1)) * 590;
+    85 + (dates.indexOf(date) / Math.max(dates.length - 1, 1)) * 370;
   const y = (value: number) =>
     215 - ((value - low) / Math.max(high - low, 1)) * 180;
   return (
@@ -37,7 +37,7 @@ export function HistoryChart({
       </div>
       <svg
         className="chart"
-        viewBox="0 0 720 260"
+        viewBox="0 0 480 260"
         role="img"
         aria-label="価格種別ごとの中央値の推移。詳細は下の価格データから確認できます。"
       >
@@ -47,10 +47,10 @@ export function HistoryChart({
             <g key={i}>
               <line
                 x1="85"
-                x2="675"
+                x2="455"
                 y1={y(value)}
                 y2={y(value)}
-                stroke="#e0e6e1"
+                stroke="var(--line)"
               />
               <text x="5" y={y(value) + 5}>
                 {yen(Math.round(value))}
@@ -74,7 +74,7 @@ export function HistoryChart({
         <text x="85" y="250">
           {dates[0]}
         </text>
-        <text x="675" y="250" textAnchor="end">
+        <text x="455" y="250" textAnchor="end">
           {dates.at(-1)}
         </text>
       </svg>

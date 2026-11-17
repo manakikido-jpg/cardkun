@@ -35,24 +35,10 @@ export default async function Search({
     <>
       <section className="hero">
         <div className="hero-copy">
-          <p className="eyebrow">
-            <span className="status-dot" aria-hidden="true" />{" "}
-            あなたのカードに、相場のものさし。
-          </p>
-          <h1>
-            あのカードの、
-            <br />
-            <span className="hero-accent">いまの相場を。</span>
-          </h1>
-          <p className="muted">
-            ショップ・フリマ・海外の価格を、ひとつの場所で。
-          </p>
+          <h1>カード相場</h1>
+          <p className="muted">販売・買取・成約価格を比較</p>
         </div>
         <div className="search-panel">
-          <div className="search-panel-heading">
-            <span className="step-label">01 / カードを探す</span>
-            <span className="search-hint">名前の一部でも検索できます</span>
-          </div>
           <form action="/" className="search-form">
             <label className="search-name">
               カード名
@@ -86,17 +72,6 @@ export default async function Search({
               相場を検索 →
             </button>
           </form>
-        </div>
-        <div className="guide-strip" aria-label="使い方">
-          <span>
-            <b>01</b> カードを探す
-          </span>
-          <span>
-            <b>02</b> 相場をくらべる
-          </span>
-          <span>
-            <b>03</b> 出品に役立てる
-          </span>
         </div>
       </section>
       <section>
@@ -134,7 +109,7 @@ export default async function Search({
                 href={`/cards/${encodeURIComponent(card.id)}`}
                 aria-label={`${card.name}の価格推移を見る`}
               >
-                価格推移・取得元を見る <span aria-hidden="true">↗</span>
+                詳細・価格推移 <span aria-hidden="true">↗</span>
               </Link>
             </article>
           ))}

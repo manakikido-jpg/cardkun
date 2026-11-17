@@ -27,11 +27,7 @@ export default async function Sell({
       </Link>
       <section className="sell-intro">
         <p className="eyebrow">出品サポート</p>
-        <h1>
-          納得できる価格で、
-          <br />
-          次の持ち主へ。
-        </h1>
+        <h1>出品価格を決める</h1>
         <p>
           {detail.card.name} · {detail.card.number}
         </p>
