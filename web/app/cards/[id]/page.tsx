@@ -62,7 +62,7 @@ export default async function Detail({
       <section className="panel">
         <h2>価格種別ごとの集計</h2>
         <div className="table-scroll">
-          <table>
+          <table className="responsive-table">
             <thead>
               <tr>
                 <th>種類</th>
@@ -77,15 +77,17 @@ export default async function Detail({
             <tbody>
               {summaries.map((s) => (
                 <tr key={s.priceType}>
-                  <th>{labels[s.priceType]}</th>
-                  <td>{s.count ? yen(s.min) : "—"}</td>
-                  <td>{s.count ? yen(s.median) : "—"}</td>
-                  <td>{s.count ? yen(s.max) : "—"}</td>
-                  <td>{s.count}</td>
-                  <td>
+                  <th scope="row">{labels[s.priceType]}</th>
+                  <td data-label="最安">{s.count ? yen(s.min) : "—"}</td>
+                  <td data-label="中央値">{s.count ? yen(s.median) : "—"}</td>
+                  <td data-label="最高">{s.count ? yen(s.max) : "—"}</td>
+                  <td data-label="件数">{s.count}</td>
+                  <td data-label="7日間の変化">
                     <Change value={s.change7d} />
                   </td>
-                  <td>{dateTime(s.latestAt)}</td>
+                  <td data-label="更新日時（日本時間）">
+                    {dateTime(s.latestAt)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -96,7 +98,7 @@ export default async function Detail({
       <section className="panel">
         <h2>ソース別の最新価格</h2>
         <div className="table-scroll">
-          <table>
+          <table className="responsive-table">
             <thead>
               <tr>
                 <th>取得元</th>
@@ -109,19 +111,21 @@ export default async function Detail({
             <tbody>
               {latest.map((p, i) => (
                 <tr key={`${p.sourceId}-${p.priceType}-${i}`}>
-                  <th>
+                  <th scope="row">
                     {p.sourceId === "overseas-a" && !process.env.API_BASE_URL
                       ? "海外A（仮）"
                       : (sources.items.find((s) => s.id === p.sourceId)?.name ??
                         p.sourceId)}
                   </th>
-                  <td>{labels[p.priceType]}</td>
-                  <td>{yen(p.priceJpy)}</td>
-                  <td>
+                  <td data-label="種類">{labels[p.priceType]}</td>
+                  <td data-label="価格（円換算）">{yen(p.priceJpy)}</td>
+                  <td data-label="状態・鑑定">
                     {p.condition === "unknown" ? "不明" : p.condition}
                     {p.grading && ` / ${p.grading.company} ${p.grading.grade}`}
                   </td>
-                  <td>{dateTime(p.observedAt)}</td>
+                  <td data-label="観測日時（日本時間）">
+                    {dateTime(p.observedAt)}
+                  </td>
                 </tr>
               ))}
             </tbody>

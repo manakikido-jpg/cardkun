@@ -63,21 +63,28 @@ export default async function Search({
                 placeholder="リザードン、ぴかちゅう、Charizard…"
               />
             </label>
-            <div className="filters">
-              <label>
-                弾コード
-                <input name="set" defaultValue={set} placeholder="例：sv2a" />
-              </label>
-              <label>
-                レアリティ
-                <input
-                  name="rarity"
-                  defaultValue={rarity}
-                  placeholder="例：SAR"
-                />
-              </label>
-              <button type="submit">相場を検索 →</button>
-            </div>
+            <details className="search-filters" open={Boolean(set || rarity)}>
+              <summary>
+                弾・レアリティで絞り込む{(set || rarity) && "（設定中）"}
+              </summary>
+              <div className="filters">
+                <label>
+                  弾コード
+                  <input name="set" defaultValue={set} placeholder="例：sv2a" />
+                </label>
+                <label>
+                  レアリティ
+                  <input
+                    name="rarity"
+                    defaultValue={rarity}
+                    placeholder="例：SAR"
+                  />
+                </label>
+              </div>
+            </details>
+            <button className="search-submit" type="submit">
+              相場を検索 →
+            </button>
           </form>
         </div>
         <div className="guide-strip" aria-label="使い方">
