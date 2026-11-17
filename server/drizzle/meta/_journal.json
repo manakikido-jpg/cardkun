@@ -15,6 +15,13 @@
       "when": 1794948989352,
       "tag": "0001_init",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794950223752,
+      "tag": "0002_observation_external_id",
+      "breakpoints": true
     }
   ]
 }

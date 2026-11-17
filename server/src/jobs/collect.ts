@@ -18,6 +18,8 @@ export interface CollectorReport {
   unmatched: number;
   /** 為替レートがなく円換算できなかった件数 */
   noFxRate: number;
+  /** 保存済み（externalId が同じ）のため飛ばした件数 */
+  duplicates: number;
   error: string | null;
 }
 
@@ -66,7 +68,14 @@ export async function runCollect(
 
   for (const collector of collectorList) {
     const { source } = collector;
-    const report: CollectorReport = { sourceId: source.id, inserted: 0, unmatched: 0, noFxRate: 0, error: null };
+    const report: CollectorReport = {
+      sourceId: source.id,
+      inserted: 0,
+      unmatched: 0,
+      noFxRate: 0,
+      duplicates: 0,
+      error: null,
+    };
     reports.push(report);
 
     await db
@@ -80,8 +89,13 @@ export async function runCollect(
     let buffer: (typeof priceObservations.$inferInsert)[] = [];
     const flush = async () => {
       if (buffer.length === 0) return;
-      await db.insert(priceObservations).values(buffer);
-      report.inserted += buffer.length;
+      const inserted = await db
+        .insert(priceObservations)
+        .values(buffer)
+        .onConflictDoNothing()
+        .returning({ id: priceObservations.id });
+      report.inserted += inserted.length;
+      report.duplicates += buffer.length - inserted.length;
       buffer = [];
     };
 
@@ -109,6 +123,7 @@ export async function runCollect(
           gradingGrade: obs.grading?.grade ?? null,
           url: obs.url ?? null,
           observedAt: obs.observedAt,
+          externalId: obs.externalId ?? null,
         });
         touchedCards.add(cardId);
         touchedDates.add(jstDate(obs.observedAt));
@@ -122,7 +137,7 @@ export async function runCollect(
     }
     log(
       `[collect] ${source.id}: inserted=${report.inserted} unmatched=${report.unmatched} ` +
-        `noFxRate=${report.noFxRate}${report.error ? ` error=${report.error}` : ""}`,
+        `noFxRate=${report.noFxRate} duplicates=${report.duplicates}${report.error ? ` error=${report.error}` : ""}`,
     );
   }
 

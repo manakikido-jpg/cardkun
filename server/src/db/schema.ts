@@ -9,7 +9,9 @@ import {
   real,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /**
  * DB スキーマ。変更したら `pnpm --filter @cardkun/server db:generate` でマイグレーションを作る。
@@ -71,8 +73,13 @@ export const priceObservations = pgTable(
     gradingGrade: real("grading_grade"),
     url: text("url"),
     observedAt: timestamp("observed_at", { withTimezone: true, mode: "date" }).notNull(),
+    /** 取得元での一意な ID（同じ観測を二重に保存しないため）。任意 */
+    externalId: text("external_id"),
   },
   (t) => [
+    uniqueIndex("price_obs_source_external_uq")
+      .on(t.sourceId, t.externalId)
+      .where(sql`${t.externalId} IS NOT NULL`),
     index("price_obs_card_type_time_idx").on(t.cardId, t.priceType, t.observedAt.desc()),
     index("price_obs_source_time_idx").on(t.sourceId, t.observedAt.desc()),
   ],
