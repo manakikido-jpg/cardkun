@@ -8,3 +8,6 @@ coverage/
 .env.*
 !.env.example
 .DS_Store
+
+# server の開発用 DB（PGlite）
+server/.data/
