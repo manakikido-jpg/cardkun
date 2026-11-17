@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { CardHistoryResponse, PriceType } from "@cardkun/shared";
 import { labels, yen } from "../lib/format";
-const colors = ["#74d8e4", "#e9b86f", "#a5b6fa", "#e6a6cb", "#9cadb8"];
+const colors = ["#bd3e39", "#947221", "#406a9e", "#925487", "#577a72"];
 export function HistoryChart({
   histories,
 }: {

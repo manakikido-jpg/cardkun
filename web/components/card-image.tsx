@@ -2,7 +2,7 @@ import Image from "next/image";
 import type { Card } from "@cardkun/shared";
 export function CardImage({ card }: { card: Card }) {
   return (
-    <div className="card-image">
+    <div className="card-image" data-rarity={card.rarity}>
       {card.imageUrl ? (
         <Image
           src={card.imageUrl}
@@ -12,11 +12,20 @@ export function CardImage({ card }: { card: Card }) {
           unoptimized
         />
       ) : (
-        <div role="img" aria-label={`${card.name}：画像準備中`}>
-          <span className="card-symbol" aria-hidden="true">
+        <div
+          className="card-placeholder"
+          role="img"
+          aria-label={`${card.name}：カード画像未登録`}
+        >
+          <span className="placeholder-code">
+            {card.setCode} / {card.rarity}
+          </span>
+          <span className="placeholder-emblem" aria-hidden="true">
             ✧
           </span>
-          <small>画像準備中</small>
+          <span className="placeholder-name">{card.name}</span>
+          <span className="placeholder-number">{card.number}</span>
+          <small>カード画像未登録</small>
         </div>
       )}
     </div>

@@ -25,9 +25,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </span>
           </Link>
           <Link className="header-search" href="/">
-            カードを探す <span aria-hidden="true">↗</span>
+            相場検索 <span aria-hidden="true">↗</span>
           </Link>
         </header>
+        <div className="brand-strip">
+          販売・買取・フリマの価格を、まとめて比較
+        </div>
         <main id="main-content">
           {!process.env.API_BASE_URL && (
             <p className="demo">
@@ -36,6 +39,46 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           )}
           {children}
         </main>
+        <nav className="bottom-nav" aria-label="メインメニュー">
+          <Link href="/">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              aria-hidden="true"
+            >
+              <path d="m3 10 9-7 9 7v10H4V10M9 21v-8h6v8" />
+            </svg>
+            ホーム
+          </Link>
+          <Link href="/#search">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              aria-hidden="true"
+            >
+              <circle cx="10" cy="10" r="6" />
+              <path d="m15 15 6 6" />
+            </svg>
+            カード検索
+          </Link>
+          <Link href="/#guide">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              aria-hidden="true"
+            >
+              <rect x="4" y="3" width="16" height="18" rx="2" />
+              <path d="M8 8h8M8 12h8M8 16h5" />
+            </svg>
+            使い方
+          </Link>
+        </nav>
         <footer>
           cardkun / ポケモンカード相場
           <br />
