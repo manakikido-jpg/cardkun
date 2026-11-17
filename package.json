@@ -1,0 +1,16 @@
+{
+  "name": "cardkun",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "dev:server": "pnpm --filter @cardkun/server dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

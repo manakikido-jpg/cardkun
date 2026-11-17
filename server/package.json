@@ -1,0 +1,24 @@
+{
+  "name": "@cardkun/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cardkun/shared": "workspace:*",
+    "@hono/node-server": "^2.1.9",
+    "hono": "^4.13.19",
+    "zod": "^4.1.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}
