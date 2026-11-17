@@ -13,7 +13,9 @@ export function CardImage({ card }: { card: Card }) {
         />
       ) : (
         <div role="img" aria-label={`${card.name}：画像準備中`}>
-          <span className="card-symbol">◇</span>
+          <span className="card-symbol" aria-hidden="true">
+            ✧
+          </span>
           <small>画像準備中</small>
         </div>
       )}

@@ -1,9 +1,10 @@
 "use client";
 export function ConditionSelect({ condition }: { condition: string }) {
   return (
-    <label>
-      状態
+    <div className="condition-field">
+      <label htmlFor="card-condition">状態</label>
       <select
+        id="card-condition"
         name="condition"
         defaultValue={condition}
         onChange={(event) => event.currentTarget.form?.requestSubmit()}
@@ -13,6 +14,6 @@ export function ConditionSelect({ condition }: { condition: string }) {
         <option value="C">C · 目立つ傷あり</option>
         <option value="D">D · 大きな傷・折れあり</option>
       </select>
-    </label>
+    </div>
   );
 }
