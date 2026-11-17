@@ -1,0 +1,2 @@
+ALTER TABLE "price_observations" ADD COLUMN "external_id" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "price_obs_source_external_uq" ON "price_observations" USING btree ("source_id","external_id") WHERE "price_observations"."external_id" IS NOT NULL;

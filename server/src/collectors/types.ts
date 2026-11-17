@@ -23,6 +23,11 @@ export interface RawObservation {
   grading?: Grading | null;
   url?: string | null;
   observedAt: Date;
+  /**
+   * 取得元での一意な ID。同じ ID の観測は二度保存されない（毎日同じ値を返す API の重複防止）。
+   * 例: Cardmarket の価格なら「カードID:更新日時」
+   */
+  externalId?: string | null;
 }
 
 export interface CollectContext {

@@ -105,3 +105,15 @@ describe("runCollect", () => {
     expect(reports[1]).toMatchObject({ sourceId: "s2", inserted: 1, error: null });
   });
 });
+
+describe("refreshAllSummaries", () => {
+  it("drops summaries whose observations have aged out", async () => {
+    const before = await h.db.select().from(priceSummaries).where(eq(priceSummaries.cardId, "sv2a-201"));
+    expect(before.length).toBeGreaterThan(0);
+    // 60 日後：どの観測も集計期間外になる。今回の収集では sv2a-201 の観測なし
+    const later = new Date(TEST_NOW.getTime() + 60 * 86400_000);
+    await runCollect(h.db, [], { now: later, log: () => undefined, refreshAllSummaries: true });
+    const after = await h.db.select().from(priceSummaries).where(eq(priceSummaries.cardId, "sv2a-201"));
+    expect(after).toEqual([]);
+  });
+});

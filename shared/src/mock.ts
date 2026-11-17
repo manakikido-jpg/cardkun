@@ -2,10 +2,13 @@ import type {
   CardDetailResponse,
   CardHistoryResponse,
   CardSearchResponse,
+  ListingAssistResponse,
   SourcesResponse,
 } from "./api.js";
+import { suggestListing } from "./listing.js";
 import type {
   Card,
+  CardCondition,
   HistoryRange,
   PriceHistoryPoint,
   PriceObservation,
@@ -170,3 +173,9 @@ export function mockHistory(cardId: string, range: HistoryRange = "30d"): CardHi
 }
 
 export const mockSourcesResponse: SourcesResponse = { items: mockSources };
+
+/** 出品サポートの仮データ（計算は server と同じ suggestListing を使う） */
+export function mockListingAssist(cardId: string, condition: CardCondition): ListingAssistResponse | null {
+  const detail = mockCardDetail(cardId);
+  return detail ? suggestListing(detail.card, detail.summaries, condition) : null;
+}

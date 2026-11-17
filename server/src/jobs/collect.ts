@@ -18,6 +18,8 @@ export interface CollectorReport {
   unmatched: number;
   /** 為替レートがなく円換算できなかった件数 */
   noFxRate: number;
+  /** 保存済み（externalId が同じ）のため飛ばした件数 */
+  duplicates: number;
   error: string | null;
 }
 
@@ -46,7 +48,13 @@ function resolveCardId(card: RawObservation["card"]): string {
 export async function runCollect(
   db: Db,
   collectorList: Collector[],
-  opts: { now?: Date; fetcher?: PoliteFetcher; log?: (msg: string) => void } = {},
+  opts: {
+    now?: Date;
+    fetcher?: PoliteFetcher;
+    log?: (msg: string) => void;
+    /** true なら今回観測のなかったカードも含め、全カードの集計を作り直す（古い相場が残らないように） */
+    refreshAllSummaries?: boolean;
+  } = {},
 ): Promise<CollectorReport[]> {
   const now = opts.now ?? new Date();
   const log = opts.log ?? ((m) => console.log(m));
@@ -60,7 +68,14 @@ export async function runCollect(
 
   for (const collector of collectorList) {
     const { source } = collector;
-    const report: CollectorReport = { sourceId: source.id, inserted: 0, unmatched: 0, noFxRate: 0, error: null };
+    const report: CollectorReport = {
+      sourceId: source.id,
+      inserted: 0,
+      unmatched: 0,
+      noFxRate: 0,
+      duplicates: 0,
+      error: null,
+    };
     reports.push(report);
 
     await db
@@ -74,8 +89,13 @@ export async function runCollect(
     let buffer: (typeof priceObservations.$inferInsert)[] = [];
     const flush = async () => {
       if (buffer.length === 0) return;
-      await db.insert(priceObservations).values(buffer);
-      report.inserted += buffer.length;
+      const inserted = await db
+        .insert(priceObservations)
+        .values(buffer)
+        .onConflictDoNothing()
+        .returning({ id: priceObservations.id });
+      report.inserted += inserted.length;
+      report.duplicates += buffer.length - inserted.length;
       buffer = [];
     };
 
@@ -103,6 +123,7 @@ export async function runCollect(
           gradingGrade: obs.grading?.grade ?? null,
           url: obs.url ?? null,
           observedAt: obs.observedAt,
+          externalId: obs.externalId ?? null,
         });
         touchedCards.add(cardId);
         touchedDates.add(jstDate(obs.observedAt));
@@ -116,12 +137,14 @@ export async function runCollect(
     }
     log(
       `[collect] ${source.id}: inserted=${report.inserted} unmatched=${report.unmatched} ` +
-        `noFxRate=${report.noFxRate}${report.error ? ` error=${report.error}` : ""}`,
+        `noFxRate=${report.noFxRate} duplicates=${report.duplicates}${report.error ? ` error=${report.error}` : ""}`,
     );
   }
 
-  const cardIds = [...touchedCards];
-  await recomputeDaily(db, cardIds, [...touchedDates]);
-  await recomputeSummaries(db, cardIds, now);
+  await recomputeDaily(db, [...touchedCards], [...touchedDates]);
+  const summaryTargets = opts.refreshAllSummaries ? [...knownCards] : [...touchedCards];
+  for (let i = 0; i < summaryTargets.length; i += 1000) {
+    await recomputeSummaries(db, summaryTargets.slice(i, i + 1000), now);
+  }
   return reports;
 }
