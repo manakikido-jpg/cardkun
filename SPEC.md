@@ -82,6 +82,19 @@ cardkun/
 
 金額はすべて**整数**で扱う（日本円は円単位、米ドルはセント単位）。表示用の `priceJpy` には換算後の円を入れる。
 
+**カードID** は「弾コード（小文字）-番号（`/` より前、数字なら3桁ゼロ埋め）」。例：`sv2a` の `201/165` → `sv2a-201`、`1/165` → `sv2a-001`。
+
+### 相場の集計ルール（`server/src/aggregate/summaries.ts`）
+
+| 項目 | ルール |
+|---|---|
+| 対象 | **状態A・鑑定なし**の観測だけ（PSA10 などが混ざると相場がゆがむため） |
+| `shop_sell` / `shop_buy` / `market_listing` / `overseas` | 直近7日以内の「取得元ごとの最新の観測」から 最安・中央値・最高 を出す |
+| `market_sold` | 直近30日のすべての成約から出す |
+| `change7d` | 今の中央値と、7日前の日次中央値との変化率 |
+| 日付の区切り | 日本時間（Asia/Tokyo） |
+| 外貨 | 取得時点の最新為替レート（`fx_rates`）で円に換算して `priceJpy` に保存 |
+
 ---
 
 ## 5. API（`shared/src/api.ts` が正）
@@ -97,7 +110,15 @@ cardkun/
 | GET | `/api/sources` | 価格の取得元一覧 |
 | POST | `/api/listing-assist` | 出品サポート（推奨価格と説明文） |
 
-`server/` ができる前は、`web/` は `@cardkun/shared` の `mock` を使って画面を作れる。
+API は DB のデータを返す（開発用には `pnpm --filter @cardkun/server seed` で架空データを入れられる）。`web/` は `API_BASE_URL` を設定しなければ `@cardkun/shared` の `mock` で画面を作れる。
+
+### DB の使い分け
+
+| 環境 | DB | 設定 |
+|---|---|---|
+| 開発 | PGlite（Node 内で動く PostgreSQL。インストール不要） | `DATABASE_URL` を設定しない。`server/.data/pglite` に保存 |
+| テスト | PGlite（メモリ上） | 自動 |
+| 本番 | PostgreSQL | `DATABASE_URL` を設定。日本語の trigram 検索のため、DB のロケールは UTF-8 系（`C.UTF-8` など）にする |
 
 ---
 
@@ -110,6 +131,11 @@ cardkun/
 | 国内カードショップ | 規約で許可されているショップから、低頻度（1サイトあたり数秒に1回程度）で取得 | 対象ショップを選定中 |
 | フリマ（メルカリなど） | 公開APIがなく、規約で自動取得が禁止されている可能性が高い。規約を確認してから方式を決める | 要確認 |
 | 海外サイト | 公式API（eBay、PriceCharting など）の利用条件を確認 | 要確認 |
+
+収集の仕組み（`server/src/collectors/`）：
+- 取得元ごとに `Collector` を1つ作り、`registry.ts` に登録する。確認が済んだ取得元だけを登録する。
+- HTTP は `PoliteFetcher` を通す。robots.txt を自動で確認し、同じサイトへのアクセスは3秒以上あける。
+- 定期実行は `pnpm --filter @cardkun/server collect`（cron などから1日数回）。
 
 ---
 
