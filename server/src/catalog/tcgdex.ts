@@ -1,8 +1,9 @@
 import { z } from "zod";
-import type { Card } from "@cardkun/shared";
+import type { Card, CardDetails } from "@cardkun/shared";
 import { PoliteFetcher } from "../collectors/http.js";
 import { makeCardId } from "../lib/normalize.js";
 import { rarityToJa } from "./rarity.js";
+import { toDetails } from "./details.js";
 
 /**
  * TCGdex（https://tcgdex.dev）の日本語カード API クライアント。
@@ -62,12 +63,40 @@ export const CardmarketPricing = z
   .partial();
 export type CardmarketPricing = z.infer<typeof CardmarketPricing>;
 
+const TypeModifier = z.object({ type: z.string(), value: z.string().optional() });
+
 export const TcgdexCard = z.object({
   id: z.string(),
   localId: z.string(),
   name: z.string(),
   image: z.string().optional(),
   rarity: z.string().optional(),
+  // 詳しい情報（すべて任意。カードの種類によって有無が違う）
+  category: z.string().optional(),
+  illustrator: z.string().optional(),
+  hp: z.number().optional(),
+  types: z.array(z.string()).optional(),
+  stage: z.string().optional(),
+  evolveFrom: z.string().optional(),
+  regulationMark: z.string().optional(),
+  trainerType: z.string().optional(),
+  effect: z.string().optional(),
+  retreat: z.number().optional(),
+  abilities: z
+    .array(z.object({ type: z.string().optional(), name: z.string().optional(), effect: z.string().optional() }))
+    .optional(),
+  attacks: z
+    .array(
+      z.object({
+        name: z.string().optional(),
+        cost: z.array(z.string()).optional(),
+        damage: z.union([z.string(), z.number()]).optional(),
+        effect: z.string().optional(),
+      }),
+    )
+    .optional(),
+  weaknesses: z.array(TypeModifier).optional(),
+  resistances: z.array(TypeModifier).optional(),
   set: z.object({ id: z.string(), name: z.string(), cardCount: CardCount.optional() }),
   pricing: z
     .object({ cardmarket: CardmarketPricing.nullable().optional() })
@@ -100,8 +129,11 @@ export class TcgdexClient {
   }
 }
 
-/** TCGdex のカード → cardkun のカード */
-export function toCard(card: TcgdexCard, set: Pick<TcgdexSet, "id" | "name" | "releaseDate" | "serie" | "cardCount">): Card {
+/** TCGdex のカード → cardkun のカード（詳しい情報つき） */
+export function toCard(
+  card: TcgdexCard,
+  set: Pick<TcgdexSet, "id" | "name" | "releaseDate" | "serie" | "cardCount">,
+): Card & { details: CardDetails } {
   const official = set.cardCount.official;
   // 収録番号の表記：151 なら「201/165」。公式枚数がないセット（プロモ等）は番号だけ
   const number = official ? `${card.localId}/${String(official).padStart(3, "0")}` : card.localId;
@@ -116,5 +148,6 @@ export function toCard(card: TcgdexCard, set: Pick<TcgdexSet, "id" | "name" | "r
     // 一覧表示の速度を優先して小さい画像（low.webp）にする
     imageUrl: card.image ? `${card.image}/low.webp` : null,
     releaseDate: set.releaseDate && /^\d{4}-\d{2}-\d{2}$/.test(set.releaseDate) ? set.releaseDate : null,
+    details: toDetails(card),
   };
 }

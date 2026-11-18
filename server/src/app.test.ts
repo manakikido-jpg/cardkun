@@ -5,9 +5,14 @@ import {
   CardSearchResponse,
   ErrorResponse,
   HealthResponse,
+  CardObservationsResponse,
   ListingAssistResponse,
+  SetsResponse,
   SourcesResponse,
+  mock,
 } from "@cardkun/shared";
+import { eq } from "drizzle-orm";
+import { cards } from "./db/schema.js";
 import type { DbHandle } from "./db/client.js";
 import { createApp } from "./app.js";
 import { createSeededDb, TEST_NOW } from "./test-helpers.js";
@@ -106,5 +111,52 @@ describe("API (DB-backed) matches the shared contract", () => {
     expect(b.description).toContain("リザードンex");
     expect((await post({ cardId: "nope", condition: "A" })).status).toBe(404);
     expect((await post({ cardId: "sv2a-201", condition: "Z" })).status).toBe(400);
+  });
+});
+
+describe("API additions: sets, sort, observations, details", () => {
+  it("GET /api/sets", async () => {
+    const body = SetsResponse.parse(await (await get("/api/sets")).json());
+    expect(body.items).toEqual([{ setCode: "sv2a", setName: "ポケモンカード151", releaseDate: "2023-06-16", cardCount: 3 }]);
+  });
+
+  it("sorts by number and by reference price", async () => {
+    const ids = async (sort: string) => (await search(`sort=${sort}`)).items.map((c) => c.id);
+    expect(await ids("number")).toEqual(["sv2a-173", "sv2a-201", "sv2a-205"]);
+    // 参考価格（ショップ販売の中央値）：201 > 205 > 173
+    expect(await ids("price_desc")).toEqual(["sv2a-201", "sv2a-205", "sv2a-173"]);
+    expect(await ids("price_asc")).toEqual(["sv2a-173", "sv2a-205", "sv2a-201"]);
+    expect((await get("/api/cards?sort=cheap")).status).toBe(400);
+  });
+
+  it("GET /api/cards/:id/observations pages through all prices, newest first", async () => {
+    const page1 = CardObservationsResponse.parse(
+      await (await get("/api/cards/sv2a-201/observations?limit=5")).json(),
+    );
+    expect(page1.items).toHaveLength(5);
+    const times = page1.items.map((o) => o.observedAt);
+    expect([...times].sort().reverse()).toEqual(times);
+    expect(page1.nextCursor).not.toBeNull();
+    const page2 = CardObservationsResponse.parse(
+      await (await get(`/api/cards/sv2a-201/observations?limit=5&cursor=${page1.nextCursor}`)).json(),
+    );
+    expect(page2.items[0]!.observedAt <= page1.items[4]!.observedAt).toBe(true);
+
+    const sold = CardObservationsResponse.parse(
+      await (await get("/api/cards/sv2a-201/observations?priceType=market_sold&sourceId=flea-a")).json(),
+    );
+    expect(sold.items.length).toBeGreaterThan(0);
+    expect(sold.items.every((o) => o.priceType === "market_sold" && o.sourceId === "flea-a")).toBe(true);
+
+    expect((await get("/api/cards/nope/observations")).status).toBe(404);
+    expect((await get("/api/cards/sv2a-201/observations?limit=0")).status).toBe(400);
+  });
+
+  it("GET /api/cards/:id returns details when stored", async () => {
+    const before = CardDetailResponse.parse(await (await get("/api/cards/sv2a-201")).json());
+    expect(before.details).toBeNull();
+    await h.db.update(cards).set({ details: mock.mockDetails["sv2a-201"] }).where(eq(cards.id, "sv2a-201"));
+    const after = CardDetailResponse.parse(await (await get("/api/cards/sv2a-201")).json());
+    expect(after.details?.attacks.map((a) => a.name)).toEqual(["ブレイブウイング", "ばくえんのうず"]);
   });
 });

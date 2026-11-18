@@ -114,3 +114,80 @@ export const CardWithSummary = Card.extend({
   summaries: z.array(PriceSummary),
 });
 export type CardWithSummary = z.infer<typeof CardWithSummary>;
+
+// ---------- 追加（2026-11-18）：カードの詳細・弾の一覧・並び替え ----------
+
+/** ワザ */
+export const CardAttack = z.object({
+  name: z.string(),
+  /** 必要なエネルギー（日本語。例: ["炎", "無色"]） */
+  cost: z.array(z.string()),
+  /** ダメージ（例: "60+", "330"）。ないワザは null */
+  damage: z.string().nullable(),
+  effect: z.string().nullable(),
+});
+export type CardAttack = z.infer<typeof CardAttack>;
+
+/** 特性など */
+export const CardAbility = z.object({
+  /** 例: "特性" */
+  type: z.string(),
+  name: z.string(),
+  effect: z.string(),
+});
+export type CardAbility = z.infer<typeof CardAbility>;
+
+/** 弱点・抵抗力 */
+export const CardTypeModifier = z.object({
+  /** タイプ（日本語。例: "水"） */
+  type: z.string(),
+  /** 例: "×2", "-30" */
+  value: z.string(),
+});
+export type CardTypeModifier = z.infer<typeof CardTypeModifier>;
+
+/** カードの詳しい情報（TCGdex 由来。英語の固定値は日本語に変換済み） */
+export const CardDetails = z.object({
+  /** ポケモン / トレーナーズ / エネルギー */
+  category: z.string(),
+  hp: z.number().nullable(),
+  /** タイプ（日本語。例: ["炎"]） */
+  types: z.array(z.string()),
+  /** 進化段階（例: "たね", "1進化", "2進化"） */
+  stage: z.string().nullable(),
+  /** 進化元のポケモン名 */
+  evolveFrom: z.string().nullable(),
+  illustrator: z.string().nullable(),
+  /** レギュレーションマーク（例: "G"） */
+  regulationMark: z.string().nullable(),
+  /** トレーナーズの種類（グッズ / サポート / スタジアム / ポケモンのどうぐ） */
+  trainerType: z.string().nullable(),
+  /** トレーナーズ・エネルギーの効果文 */
+  effect: z.string().nullable(),
+  abilities: z.array(CardAbility),
+  attacks: z.array(CardAttack),
+  weaknesses: z.array(CardTypeModifier),
+  resistances: z.array(CardTypeModifier),
+  /** にげるためのエネルギーの数 */
+  retreat: z.number().nullable(),
+});
+export type CardDetails = z.infer<typeof CardDetails>;
+
+/** 弾（セット）の一覧の 1 行 */
+export const CardSet = z.object({
+  setCode: z.string(),
+  setName: z.string(),
+  releaseDate: z.iso.date().nullable(),
+  /** DB に登録されているカードの枚数 */
+  cardCount: z.number().int().nonnegative(),
+});
+export type CardSet = z.infer<typeof CardSet>;
+
+/**
+ * 検索結果の並び順
+ * - new：発売日の新しい順（既定）
+ * - number：弾コード → 収録番号の順
+ * - price_desc / price_asc：参考価格（ショップ販売 → フリマ成約 → 海外相場の中央値の順に、最初にあるもの）の高い順 / 安い順
+ */
+export const SearchSort = z.enum(["new", "number", "price_desc", "price_asc"]);
+export type SearchSort = z.infer<typeof SearchSort>;

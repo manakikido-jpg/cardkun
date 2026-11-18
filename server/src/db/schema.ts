@@ -4,6 +4,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   real,
@@ -12,6 +13,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import type { CardDetails } from "@cardkun/shared";
 
 /**
  * DB スキーマ。変更したら `pnpm --filter @cardkun/server db:generate` でマイグレーションを作る。
@@ -33,6 +35,8 @@ export const cards = pgTable(
     releaseDate: date("release_date", { mode: "string" }),
     /** 検索用に正規化した文字列（lib/normalize.ts の buildSearchText） */
     searchText: text("search_text").notNull(),
+    /** カードの詳しい情報（shared の CardDetails）。未取得なら null */
+    details: jsonb("details").$type<CardDetails>(),
   },
   (t) => [
     // 部分一致・あいまい検索を高速化する（pg_trgm）

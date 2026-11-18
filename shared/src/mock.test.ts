@@ -46,3 +46,14 @@ describe("suggestListing (shared by server and mock)", () => {
     expect(mock.mockListingAssist("nope", "A")).toBeNull();
   });
 });
+
+describe("mock data for sets, observations and details", () => {
+  it("matches the shared schemas", async () => {
+    const { SetsResponse, CardObservationsResponse, CardDetailResponse: Detail } = await import("./api.js");
+    expect(() => SetsResponse.parse(mock.mockSets())).not.toThrow();
+    expect(() => CardObservationsResponse.parse(mock.mockObservations("sv2a-201"))).not.toThrow();
+    expect(mock.mockObservations("nope")).toBeNull();
+    expect(Detail.parse(mock.mockCardDetail("sv2a-201")).details?.hp).toBe(330);
+    expect(mock.mockCardDetail("sv2a-173")?.details).toBeNull();
+  });
+});

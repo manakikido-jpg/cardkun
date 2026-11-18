@@ -2,15 +2,25 @@ import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import {
   CardHistoryQuery,
+  CardObservationsQuery,
   CardSearchQuery,
   ListingAssistRequest,
   suggestListing,
   type ErrorResponse,
   type HealthResponse,
+  type SetsResponse,
   type SourcesResponse,
 } from "@cardkun/shared";
 import type { Db } from "./db/client.js";
-import { cardExists, getCardDetail, getCardHistory, listSources, searchCards } from "./repo/cards.js";
+import {
+  cardExists,
+  getCardDetail,
+  getCardHistory,
+  listObservations,
+  listSets,
+  listSources,
+  searchCards,
+} from "./repo/cards.js";
 
 /**
  * API ルート。レスポンスの形は shared/src/api.ts のまま変えないこと。
@@ -61,6 +71,20 @@ export function createApp({ db, now = () => new Date() }: AppDeps) {
     const res = await getCardHistory(db, id, parsed.data.range, now());
     c.header("Cache-Control", "public, max-age=300");
     return c.json(res);
+  });
+
+  app.get("/cards/:id/observations", async (c) => {
+    const id = c.req.param("id");
+    const parsed = CardObservationsQuery.safeParse(c.req.query());
+    if (!parsed.success) return error(c, 400, "bad_request", "invalid query");
+    if (!(await cardExists(db, id))) return error(c, 404, "not_found", "card not found");
+    c.header("Cache-Control", "public, max-age=60");
+    return c.json(await listObservations(db, id, parsed.data));
+  });
+
+  app.get("/sets", async (c) => {
+    c.header("Cache-Control", "public, max-age=3600");
+    return c.json<SetsResponse>({ items: await listSets(db) });
   });
 
   app.get("/sources", async (c) => {

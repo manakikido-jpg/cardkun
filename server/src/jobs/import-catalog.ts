@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
-import type { Card } from "@cardkun/shared";
+import { and, eq, isNotNull } from "drizzle-orm";
+import type { Card, CardDetails } from "@cardkun/shared";
 import type { Db } from "../db/client.js";
 import { cards } from "../db/schema.js";
 import { TcgdexClient, toCard } from "../catalog/tcgdex.js";
@@ -9,7 +9,8 @@ import { upsertCards } from "./cards.js";
 /**
  * TCGdex から日本語カードのカード名鑑を取り込む。
  * - 対象シリーズ（既定はスカーレット&バイオレット期とメガ期）のセットを順に取り込む
- * - 取り込み済みのカードは飛ばし、足りないカードだけ取りに行く（途中で失敗しても、再実行で続きから進む）
+ * - 取り込み済みのカードは飛ばし、足りないカード（詳しい情報が未取得のカードを含む）だけ取りに行く
+ *   （途中で失敗しても、再実行で続きから進む）
  * - full: true なら全部やり直す
  * - レアリティはカード詳細にしかないため、カードごとに 1 リクエストかかる
  */
@@ -47,14 +48,17 @@ export async function importCatalog(
         const existing = opts.full
           ? new Set<string>()
           : new Set(
-              (await db.select({ id: cards.id }).from(cards).where(eq(cards.setCode, set.id.toLowerCase()))).map(
-                (r) => r.id,
-              ),
+              (
+                await db
+                  .select({ id: cards.id })
+                  .from(cards)
+                  .where(and(eq(cards.setCode, set.id.toLowerCase()), isNotNull(cards.details)))
+              ).map((r) => r.id),
             );
         const missing = set.cards.filter((b) => !existing.has(makeCardId(set.id, b.localId)));
         if (missing.length === 0) continue;
 
-        const list: Card[] = [];
+        const list: (Card & { details: CardDetails })[] = [];
         for (const brief of missing) {
           try {
             list.push(toCard(await client.card(brief.id), set));

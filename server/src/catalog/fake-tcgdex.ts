@@ -15,10 +15,44 @@ const SET_SV2A = {
   logo: `${IMG}/logo`,
 };
 
-const CARDS: Record<string, { name: string; rarity: string; eur?: number }> = {
-  "001": { name: "フシギダネ", rarity: "Common" },
+const CARDS: Record<string, { name: string; rarity: string; eur?: number; extra?: Record<string, unknown> }> = {
+  "001": {
+    name: "フシギダネ",
+    rarity: "Common",
+    extra: { category: "Pokemon", illustrator: "Yuu Nishida", hp: 70, types: ["Grass"], stage: "Basic", retreat: 2, regulationMark: "G", weaknesses: [{ type: "Fire", value: "x2" }] },
+  },
+  "165": {
+    name: "サイクリングロード",
+    rarity: "Uncommon",
+    extra: {
+      category: "Trainer",
+      illustrator: "Oswaldo KATO",
+      trainerType: "Stadium",
+      effect: "おたがいのプレイヤーは、自分の番ごとに1回、自分の手札から基本エネルギーを1枚トラッシュするなら、自分の山札を1枚引いてよい。",
+    },
+  },
   "173": { name: "ピカチュウ", rarity: "Illustration rare", eur: 21.5 },
-  "201": { name: "リザードンex", rarity: "Special illustration rare", eur: 89.99 },
+  "201": {
+    name: "リザードンex",
+    rarity: "Special illustration rare",
+    eur: 89.99,
+    extra: {
+      category: "Pokemon",
+      illustrator: "miki kudo",
+      hp: 330,
+      types: ["Fire"],
+      stage: "Stage2",
+      evolveFrom: "リザード",
+      suffix: "EX",
+      attacks: [
+        { name: "ブレイブウイング", damage: "60+", cost: ["Fire"], effect: "このポケモンにダメカンがのっているなら、100ダメージ追加。" },
+        { name: "ばくえんのうず", damage: 330, cost: ["Fire", "Fire", "Fire", "Fire"], effect: "このポケモンについているエネルギーを3個選び、トラッシュする。" },
+      ],
+      weaknesses: [{ type: "Water", value: "x2" }],
+      retreat: 2,
+      regulationMark: "G",
+    },
+  },
   "208": { name: "ミュウex", rarity: "Mega Hyper Rare", eur: 40 },
 };
 
@@ -28,6 +62,7 @@ function cardDetail(localId: string) {
   const c = CARDS[localId]!;
   return {
     category: "Pokemon",
+    ...c.extra,
     id: `SV2a-${localId}`,
     localId,
     name: c.name,

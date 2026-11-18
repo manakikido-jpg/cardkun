@@ -22,6 +22,13 @@
       "when": 1794950223752,
       "tag": "0002_observation_external_id",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795013157755,
+      "tag": "0003_card_details",
+      "breakpoints": true
     }
   ]
 }
