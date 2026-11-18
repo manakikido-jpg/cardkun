@@ -1,6 +1,5 @@
 import { createDbFromEnv } from "../db/env.js";
-import { PoliteFetcher } from "../collectors/http.js";
-import { TcgdexClient } from "../catalog/tcgdex.js";
+import { TcgdexClient, createTcgdexFetcher } from "../catalog/tcgdex.js";
 import { importCatalog } from "../jobs/import-catalog.js";
 
 /**
@@ -15,8 +14,7 @@ const series = args.filter((a) => !a.startsWith("--"));
 
 const handle = createDbFromEnv();
 await handle.migrate();
-// TCGdex には明示的なレート制限はないが、1 秒 4 リクエストまでに抑える
-const client = new TcgdexClient(new PoliteFetcher({ minIntervalMs: 250 }));
+const client = new TcgdexClient(createTcgdexFetcher());
 const report = await importCatalog(handle.db, client, { full, series: series.length ? series : undefined });
 await handle.close();
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Card } from "@cardkun/shared";
-import type { PoliteFetcher } from "../collectors/http.js";
+import { PoliteFetcher } from "../collectors/http.js";
 import { makeCardId } from "../lib/normalize.js";
 import { rarityToJa } from "./rarity.js";
 
@@ -12,6 +12,20 @@ import { rarityToJa } from "./rarity.js";
  */
 
 export const TCGDEX_BASE = "https://api.tcgdex.net/v2/ja";
+
+/**
+ * TCGdex 用の HTTP クライアント。
+ * - robots.txt は「Disallow: /」だが、同じファイルに "this is for Crawlers only /
+ *   You can logically use robots to use the API" と明記されており、API のプログラム利用は認められている
+ *   （github.com/tcgdex/cards-database の server/public/robots.txt）。そのため robots.txt の確認は飛ばす
+ * - 明示的なレート制限はないが、1 秒 4 リクエストまでに抑える
+ */
+export function createTcgdexFetcher(): PoliteFetcher {
+  return new PoliteFetcher({
+    minIntervalMs: 250,
+    ignoreRobotsTxt: { reason: "TCGdex の robots.txt はクローラー向けで、API のプログラム利用は明記のうえ許可されている" },
+  });
+}
 
 const CardCount = z.object({ official: z.number().optional(), total: z.number().optional() }).partial();
 

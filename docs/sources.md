@@ -2,6 +2,8 @@
 
 2026-11-17 時点の調査結果。**新しい取得元の Collector を作る前に、この表を確認・更新すること。**
 
+> robots.txt の確認を飛ばせるのは、運営者がプログラムからの API 利用をはっきり認めている場合だけ。理由をコードに書くこと（`PoliteFetcher` の `ignoreRobotsTxt`）。
+
 > 注意：調査した環境から多くのサイトに直接アクセスできず、利用規約の多くは検索結果の抜粋で確認した。robots.txt はすべて未確認。実装の前に原文を読み直すこと。
 
 判定：**OK**＝実装してよい／**要契約**＝API キー・契約・運営者の許可が必要／**グレー**＝規約を確認できず、問い合わせが必要／**NG**＝規約で禁止、または避ける
@@ -10,7 +12,7 @@
 
 | 取得元 | 用途 | 方式 | 判定 | メモ |
 |---|---|---|---|---|
-| TCGdex | カード名鑑（日本語） | REST API（キー不要） | OK | データは MIT ライセンス。出典「TCGdex」を表示。画像の権利は株式会社ポケモン等にあるため再ホストせず、TCGdex の URL にリンクするだけにする |
+| TCGdex | カード名鑑（日本語） | REST API（キー不要） | OK | データは MIT ライセンス。出典「TCGdex」を表示。画像の権利は株式会社ポケモン等にあるため再ホストせず、TCGdex の URL にリンクするだけにする。robots.txt は `Disallow: /` だが「クローラー向けで、API はプログラムから使ってよい」と明記されているため、robots.txt の確認は飛ばす（`createTcgdexFetcher`） |
 | Cardmarket（TCGdex 経由） | 海外相場（EUR） | TCGdex のカード詳細の `pricing.cardmarket` | OK | Cardmarket 本体の API はプロ販売者限定。出典「Cardmarket（TCGdex経由）」を表示 |
 | 欧州中央銀行（Frankfurter 経由） | 為替（EUR・USD→円） | REST API（キー不要） | OK | 出典「欧州中央銀行（ECB）」を表示。営業日に 1 回更新 |
 
