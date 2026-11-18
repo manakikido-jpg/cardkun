@@ -1,6 +1,9 @@
 import { and, asc, desc, eq, gte, inArray, sql, type SQL } from "drizzle-orm";
 import type {
   Card,
+  CardObservationsQuery,
+  CardObservationsResponse,
+  CardSet,
   CardDetailResponse,
   CardHistoryResponse,
   CardSearchQuery,
@@ -11,7 +14,7 @@ import type {
   PriceSummary,
 } from "@cardkun/shared";
 import { queryRows, type Db } from "../db/client.js";
-import { cards, priceDaily, priceSummaries, sources } from "../db/schema.js";
+import { cards, priceDaily, priceObservations, priceSummaries, sources } from "../db/schema.js";
 import { jstDate } from "../aggregate/summaries.js";
 import { escapeLike, normalizeForSearch } from "../lib/normalize.js";
 
@@ -75,9 +78,26 @@ export async function searchCards(db: Db, query: CardSearchQuery): Promise<CardS
   if (query.set) where.push(eq(cards.setCode, query.set));
   if (query.rarity) where.push(eq(cards.rarity, query.rarity));
 
-  const order = q
-    ? [desc(sql`similarity(${cards.searchText}, ${q})`), asc(cards.id)]
-    : [sql`${cards.releaseDate} DESC NULLS LAST`, asc(cards.id)];
+  // 参考価格：ショップ販売 → フリマ成約 → 海外相場 の中央値のうち、最初にあるもの
+  const refPrice = sql`(
+    SELECT coalesce(
+      max(ps.median) FILTER (WHERE ps.price_type = 'shop_sell'),
+      max(ps.median) FILTER (WHERE ps.price_type = 'market_sold'),
+      max(ps.median) FILTER (WHERE ps.price_type = 'overseas')
+    ) FROM price_summaries ps WHERE ps.card_id = ${cards.id}
+  )`;
+  const sort = query.sort ?? (q ? undefined : "new");
+  const order =
+    sort === "number"
+      ? [asc(cards.setCode), asc(cards.id)]
+      : sort === "price_desc"
+        ? [sql`${refPrice} DESC NULLS LAST`, asc(cards.id)]
+        : sort === "price_asc"
+          ? [sql`${refPrice} ASC NULLS LAST`, asc(cards.id)]
+          : sort === "new"
+            ? [sql`${cards.releaseDate} DESC NULLS LAST`, asc(cards.setCode), asc(cards.id)]
+            : // キーワード検索で並び順の指定がなければ、一致度の高い順
+              [desc(sql`similarity(${cards.searchText}, ${q})`), asc(cards.id)];
 
   const rows = await db
     .select()
@@ -110,6 +130,25 @@ interface LatestRow {
   observed_at: Date | string;
 }
 
+const toObservation = (r: LatestRow): PriceObservation => ({
+  cardId: r.card_id,
+  sourceId: r.source_id,
+  priceType: r.price_type as PriceObservation["priceType"],
+  price: r.price,
+  currency: r.currency as PriceObservation["currency"],
+  priceJpy: r.price_jpy,
+  condition: r.condition as PriceObservation["condition"],
+  grading:
+    r.grading_company && r.grading_grade != null
+      ? {
+          company: r.grading_company as NonNullable<PriceObservation["grading"]>["company"],
+          grade: r.grading_grade,
+        }
+      : null,
+  url: r.url,
+  observedAt: new Date(r.observed_at).toISOString(),
+});
+
 export async function getCardDetail(db: Db, cardId: string, now: Date): Promise<CardDetailResponse | null> {
   const [row] = await db.select().from(cards).where(eq(cards.id, cardId));
   if (!row) return null;
@@ -134,27 +173,9 @@ export async function getCardDetail(db: Db, cardId: string, now: Date): Promise<
 
   return {
     card: toCard(row),
+    details: row.details ?? null,
     summaries: sums.get(cardId) ?? [],
-    latest: latest.map(
-      (r): PriceObservation => ({
-        cardId: r.card_id,
-        sourceId: r.source_id,
-        priceType: r.price_type as PriceObservation["priceType"],
-        price: r.price,
-        currency: r.currency as PriceObservation["currency"],
-        priceJpy: r.price_jpy,
-        condition: r.condition as PriceObservation["condition"],
-        grading:
-          r.grading_company && r.grading_grade != null
-            ? {
-                company: r.grading_company as NonNullable<PriceObservation["grading"]>["company"],
-                grade: r.grading_grade,
-              }
-            : null,
-        url: r.url,
-        observedAt: new Date(r.observed_at).toISOString(),
-      }),
-    ),
+    latest: latest.map(toObservation),
   };
 }
 
@@ -200,4 +221,58 @@ export async function listSources(db: Db): Promise<PriceSource[]> {
     currency: r.currency as PriceSource["currency"],
     url: r.url,
   }));
+}
+
+/** 価格の観測（生データ）を新しい順に返す */
+export async function listObservations(
+  db: Db,
+  cardId: string,
+  query: CardObservationsQuery,
+): Promise<CardObservationsResponse> {
+  const offset = decodeCursor(query.cursor);
+  const where: SQL[] = [eq(priceObservations.cardId, cardId)];
+  if (query.sourceId) where.push(eq(priceObservations.sourceId, query.sourceId));
+  if (query.priceType) where.push(eq(priceObservations.priceType, query.priceType));
+  const rows = await db
+    .select()
+    .from(priceObservations)
+    .where(and(...where))
+    .orderBy(desc(priceObservations.observedAt), desc(priceObservations.id))
+    .limit(query.limit + 1)
+    .offset(offset);
+  const hasMore = rows.length > query.limit;
+  return {
+    cardId,
+    items: rows.slice(0, query.limit).map((r) =>
+      toObservation({
+        card_id: r.cardId,
+        source_id: r.sourceId,
+        price_type: r.priceType,
+        price: r.price,
+        currency: r.currency,
+        price_jpy: r.priceJpy,
+        condition: r.condition,
+        grading_company: r.gradingCompany,
+        grading_grade: r.gradingGrade,
+        url: r.url,
+        observed_at: r.observedAt,
+      }),
+    ),
+    nextCursor: hasMore ? encodeCursor(offset + query.limit) : null,
+  };
+}
+
+/** 弾（セット）の一覧。発売日の新しい順 */
+export async function listSets(db: Db): Promise<CardSet[]> {
+  const rows = await db
+    .select({
+      setCode: cards.setCode,
+      setName: sql<string>`max(${cards.setName})`,
+      releaseDate: sql<string | null>`max(${cards.releaseDate})::text`,
+      cardCount: sql<number>`count(*)::int`,
+    })
+    .from(cards)
+    .groupBy(cards.setCode)
+    .orderBy(sql`max(${cards.releaseDate}) DESC NULLS LAST`, asc(cards.setCode));
+  return rows.map((r) => ({ ...r, cardCount: Number(r.cardCount) }));
 }

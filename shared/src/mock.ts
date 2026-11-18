@@ -1,14 +1,17 @@
 import type {
   CardDetailResponse,
   CardHistoryResponse,
+  CardObservationsResponse,
   CardSearchResponse,
   ListingAssistResponse,
+  SetsResponse,
   SourcesResponse,
 } from "./api.js";
 import { suggestListing } from "./listing.js";
 import type {
   Card,
   CardCondition,
+  CardDetails,
   HistoryRange,
   PriceHistoryPoint,
   PriceObservation,
@@ -147,10 +150,61 @@ export function mockSearch(q?: string): CardSearchResponse {
   return { items, nextCursor: null };
 }
 
+/** カードの詳しい情報の仮データ（リザードンex だけ。値は実際のカードに合わせている） */
+export const mockDetails: Record<string, CardDetails> = {
+  "sv2a-201": {
+    category: "ポケモン",
+    hp: 330,
+    types: ["炎"],
+    stage: "2進化",
+    evolveFrom: "リザード",
+    illustrator: "miki kudo",
+    regulationMark: "G",
+    trainerType: null,
+    effect: null,
+    abilities: [],
+    attacks: [
+      {
+        name: "ブレイブウイング",
+        cost: ["炎"],
+        damage: "60+",
+        effect: "このポケモンにダメカンがのっているなら、100ダメージ追加。",
+      },
+      {
+        name: "ばくえんのうず",
+        cost: ["炎", "炎", "炎", "炎"],
+        damage: "330",
+        effect: "このポケモンについているエネルギーを3個選び、トラッシュする。",
+      },
+    ],
+    weaknesses: [{ type: "水", value: "×2" }],
+    resistances: [],
+    retreat: 2,
+  },
+};
+
 export function mockCardDetail(cardId: string): CardDetailResponse | null {
   const card = mockCards.find((c) => c.id === cardId);
   if (!card) return null;
-  return { card, summaries: summariesFor(cardId), latest: latestFor(cardId) };
+  return {
+    card,
+    summaries: summariesFor(cardId),
+    latest: latestFor(cardId),
+    details: mockDetails[cardId] ?? null,
+  };
+}
+
+/** 弾の一覧の仮データ */
+export function mockSets(): SetsResponse {
+  return {
+    items: [{ setCode: "sv2a", setName: "ポケモンカード151", releaseDate: "2023-06-16", cardCount: mockCards.length }],
+  };
+}
+
+/** 価格の観測（生データ）の仮データ：最新の観測を新しい順に返す */
+export function mockObservations(cardId: string): CardObservationsResponse | null {
+  if (!mockCards.some((c) => c.id === cardId)) return null;
+  return { cardId, items: latestFor(cardId), nextCursor: null };
 }
 
 export function mockHistory(cardId: string, range: HistoryRange = "30d"): CardHistoryResponse {

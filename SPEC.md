@@ -104,9 +104,11 @@ cardkun/
 | メソッド | パス | 説明 |
 |---|---|---|
 | GET | `/api/health` | 死活確認 |
-| GET | `/api/cards?q=&set=&rarity=&limit=&cursor=` | カード検索（相場の集計付き） |
-| GET | `/api/cards/:id` | カード詳細（ソース別の最新価格つき） |
+| GET | `/api/cards?q=&set=&rarity=&sort=&limit=&cursor=` | カード検索・一覧（相場の集計付き）。`q` なしなら全カードの一覧。`sort` は `new`（発売日順・既定）/ `number`（収録番号順）/ `price_desc` / `price_asc`（参考価格順） |
+| GET | `/api/cards/:id` | カード詳細（ソース別の最新価格、HP・ワザなどの `details` つき） |
 | GET | `/api/cards/:id/history?range=30d\|90d\|1y` | 価格推移 |
+| GET | `/api/cards/:id/observations?sourceId=&priceType=&limit=&cursor=` | 価格の観測（生データ）を新しい順に全件。元の通貨の価格と取得日時つき |
+| GET | `/api/sets` | 弾（セット）の一覧（発売日の新しい順、登録枚数つき） |
 | GET | `/api/sources` | 価格の取得元一覧 |
 | POST | `/api/listing-assist` | 出品サポート（推奨価格と説明文） |
 

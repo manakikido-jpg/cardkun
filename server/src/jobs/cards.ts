@@ -1,13 +1,21 @@
 import { sql } from "drizzle-orm";
-import type { Card } from "@cardkun/shared";
+import type { Card, CardDetails } from "@cardkun/shared";
 import type { Db } from "../db/client.js";
 import { cards } from "../db/schema.js";
 import { buildSearchText } from "../lib/normalize.js";
 
-/** カード名鑑を登録・更新する（検索用文字列もここで作る） */
-export async function upsertCards(db: Db, list: Card[]): Promise<number> {
+/**
+ * カード名鑑を登録・更新する（検索用文字列もここで作る）。
+ * details を渡さなかったカードは、保存済みの詳しい情報を消さずに残す。
+ */
+export async function upsertCards(db: Db, list: (Card & { details?: CardDetails | null })[]): Promise<number> {
   if (list.length === 0) return 0;
-  const rows = list.map((c) => ({ ...c, searchText: buildSearchText(c) }));
+  // details がないときはキーごと省く（null を渡すと JSON の null が保存されてしまうため）
+  const rows = list.map(({ details, ...c }) => ({
+    ...c,
+    ...(details ? { details } : {}),
+    searchText: buildSearchText(c),
+  }));
   for (let i = 0; i < rows.length; i += 500) {
     await db
       .insert(cards)
@@ -24,6 +32,7 @@ export async function upsertCards(db: Db, list: Card[]): Promise<number> {
           imageUrl: sql`excluded.image_url`,
           releaseDate: sql`excluded.release_date`,
           searchText: sql`excluded.search_text`,
+          details: sql`coalesce(excluded.details, ${cards.details})`,
         },
       });
   }

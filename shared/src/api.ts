@@ -2,12 +2,16 @@ import { z } from "zod";
 import {
   Card,
   CardCondition,
+  CardDetails,
+  CardSet,
   CardWithSummary,
   HistoryRange,
   PriceHistoryPoint,
   PriceObservation,
   PriceSource,
   PriceSummary,
+  PriceType,
+  SearchSort,
 } from "./schemas.js";
 
 /**
@@ -20,6 +24,8 @@ export const API_PATHS = {
   cards: "/api/cards",
   card: (id: string) => `/api/cards/${encodeURIComponent(id)}`,
   cardHistory: (id: string) => `/api/cards/${encodeURIComponent(id)}/history`,
+  cardObservations: (id: string) => `/api/cards/${encodeURIComponent(id)}/observations`,
+  sets: "/api/sets",
   sources: "/api/sources",
   listingAssist: "/api/listing-assist",
 } as const;
@@ -37,6 +43,8 @@ export const CardSearchQuery = z.object({
   rarity: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
+  /** 並び順。省略時は new（発売日の新しい順） */
+  sort: SearchSort.optional(),
 });
 export type CardSearchQuery = z.infer<typeof CardSearchQuery>;
 
@@ -54,6 +62,8 @@ export const CardDetailResponse = z.object({
   summaries: z.array(PriceSummary),
   /** ソース別の最新の観測 */
   latest: z.array(PriceObservation),
+  /** カードの詳しい情報（HP・ワザなど）。未取得なら null か省略 */
+  details: CardDetails.nullable().optional(),
 });
 export type CardDetailResponse = z.infer<typeof CardDetailResponse>;
 
@@ -70,6 +80,32 @@ export const CardHistoryResponse = z.object({
   points: z.array(PriceHistoryPoint),
 });
 export type CardHistoryResponse = z.infer<typeof CardHistoryResponse>;
+
+// ---------- GET /api/cards/:id/observations ----------
+
+/** 価格の観測（生データ）を新しい順に全件返す */
+export const CardObservationsQuery = z.object({
+  sourceId: z.string().optional(),
+  priceType: PriceType.optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(100),
+  cursor: z.string().optional(),
+});
+export type CardObservationsQuery = z.infer<typeof CardObservationsQuery>;
+
+export const CardObservationsResponse = z.object({
+  cardId: z.string(),
+  items: z.array(PriceObservation),
+  nextCursor: z.string().nullable(),
+});
+export type CardObservationsResponse = z.infer<typeof CardObservationsResponse>;
+
+// ---------- GET /api/sets ----------
+
+/** 弾（セット）の一覧。発売日の新しい順 */
+export const SetsResponse = z.object({
+  items: z.array(CardSet),
+});
+export type SetsResponse = z.infer<typeof SetsResponse>;
 
 // ---------- GET /api/sources ----------
 
