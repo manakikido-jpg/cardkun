@@ -84,3 +84,18 @@ describe("importCatalog", () => {
     await h2.close();
   });
 });
+
+describe("importCatalog resume", () => {
+  it("re-run fetches only the cards that failed last time", async () => {
+    const h3 = await createTestDb();
+    const failing = fakeTcgdexFetch({ "/cards/SV2a-201": { broken: true } });
+    await importCatalog(h3.db, client(failing.impl), quiet);
+
+    const retry = fakeTcgdexFetch();
+    const report = await importCatalog(h3.db, client(retry.impl), quiet);
+    expect(retry.calls.filter((p) => p.startsWith("/cards/"))).toEqual(["/cards/SV2a-201"]);
+    expect(report).toMatchObject({ cardsUpserted: 1, errors: [] });
+    expect((await h3.db.select().from(cards)).length).toBe(4);
+    await h3.close();
+  });
+});

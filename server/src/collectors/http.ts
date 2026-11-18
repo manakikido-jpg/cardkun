@@ -90,6 +90,10 @@ export interface PoliteFetcherOptions {
   ignoreRobotsTxt?: { reason: string };
   minIntervalMs?: number;
   timeoutMs?: number;
+  /** 429・5xx・通信エラーのときに取り直す回数（既定 3） */
+  maxRetries?: number;
+  /** 取り直しの待ち時間の基準（既定 2000ms。2 秒 → 6 秒 → 18 秒） */
+  retryBaseMs?: number;
   userAgent?: string;
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
@@ -99,6 +103,8 @@ export interface PoliteFetcherOptions {
 export class PoliteFetcher {
   private readonly minIntervalMs: number;
   private readonly timeoutMs: number;
+  private readonly maxRetries: number;
+  private readonly retryBaseMs: number;
   private readonly userAgent: string;
   private readonly fetchImpl: typeof fetch;
   private readonly sleep: (ms: number) => Promise<void>;
@@ -111,6 +117,8 @@ export class PoliteFetcher {
   constructor(opts: PoliteFetcherOptions = {}) {
     this.minIntervalMs = opts.minIntervalMs ?? 3000;
     this.timeoutMs = opts.timeoutMs ?? 15000;
+    this.maxRetries = opts.maxRetries ?? 3;
+    this.retryBaseMs = opts.retryBaseMs ?? 2000;
     this.userAgent = opts.userAgent ?? USER_AGENT;
     this.fetchImpl = opts.fetchImpl ?? fetch;
     this.sleep = opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
@@ -177,14 +185,26 @@ export class PoliteFetcher {
       if (!isAllowed(rules, u.pathname + u.search)) throw new RobotsDisallowedError(url);
     }
 
-    const attempt = () => this.schedule(u.host, () => this.rawFetch(url, init));
-    try {
-      const res = await attempt();
-      if (res.status >= 500) return await attempt();
-      return res;
-    } catch (e) {
-      if (e instanceof RobotsDisallowedError) throw e;
-      return attempt();
+    // 混雑（429）・サーバー側の一時的なエラー（5xx）・通信エラーは、間隔を広げながら取り直す
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await this.schedule(u.host, () => this.rawFetch(url, init));
+        if ((res.status === 429 || res.status >= 500) && attempt < this.maxRetries) {
+          await this.sleep(this.backoffMs(attempt, res.headers.get("retry-after")));
+          continue;
+        }
+        return res;
+      } catch (e) {
+        if (attempt >= this.maxRetries) throw e;
+        await this.sleep(this.backoffMs(attempt, null));
+      }
     }
+  }
+
+  /** 取り直すまでの待ち時間。Retry-After（秒）があればそれに従う。最大 60 秒 */
+  private backoffMs(attempt: number, retryAfter: string | null): number {
+    const sec = retryAfter !== null ? Number(retryAfter) : NaN;
+    const ms = Number.isFinite(sec) && sec >= 0 ? sec * 1000 : this.retryBaseMs * 3 ** attempt;
+    return Math.min(ms, 60_000);
   }
 }
