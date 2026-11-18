@@ -76,3 +76,38 @@ describe("PoliteFetcher", () => {
     await expect(f.fetch("https://down.example/x")).rejects.toBeInstanceOf(RobotsDisallowedError);
   });
 });
+
+describe("PoliteFetcher robots.txt exemption", () => {
+  // TCGdex の実際の robots.txt（github.com/tcgdex/cards-database の server/public/robots.txt）
+  const TCGDEX_ROBOTS =
+    "User-agent: *\nDisallow: /\n\n# Please note that this is for Crawlers only\n# You can logically use robots to use the API\n";
+  const routes = {
+    "https://api.tcgdex.net/robots.txt": { status: 200, body: TCGDEX_ROBOTS },
+    "https://api.tcgdex.net/v2/ja/series/SV": { status: 200, body: "{}" },
+  };
+
+  it("blocks by default, even for an API host", async () => {
+    const { impl } = fakeFetch(routes);
+    const f = new PoliteFetcher({ fetchImpl: impl, sleep: async () => undefined });
+    await expect(f.fetch("https://api.tcgdex.net/v2/ja/series/SV")).rejects.toThrow("robots.txt disallows");
+  });
+
+  it("skips robots.txt only when a reason is given", async () => {
+    const { impl, calls } = fakeFetch(routes);
+    const f = new PoliteFetcher({
+      fetchImpl: impl,
+      sleep: async () => undefined,
+      ignoreRobotsTxt: { reason: "API use explicitly allowed" },
+    });
+    expect((await f.fetch("https://api.tcgdex.net/v2/ja/series/SV")).status).toBe(200);
+    expect(calls).toEqual(["https://api.tcgdex.net/v2/ja/series/SV"]);
+  });
+
+  it("says when robots.txt could not be read (instead of 'disallows')", async () => {
+    const impl = (async () => {
+      throw new Error("ECONNRESET");
+    }) as typeof fetch;
+    const f = new PoliteFetcher({ fetchImpl: impl, sleep: async () => undefined });
+    await expect(f.fetch("https://x.example/a")).rejects.toThrow(/確認できないため中止.*ECONNRESET/);
+  });
+});

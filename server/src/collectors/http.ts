@@ -8,8 +8,8 @@
 export const USER_AGENT = "cardkun-bot/0.1";
 
 export class RobotsDisallowedError extends Error {
-  constructor(url: string) {
-    super(`robots.txt disallows ${url}`);
+  constructor(url: string, reason?: string) {
+    super(reason ? `robots.txt を確認できないため中止しました（${reason}）: ${url}` : `robots.txt disallows ${url}`);
     this.name = "RobotsDisallowedError";
   }
 }
@@ -17,6 +17,8 @@ export class RobotsDisallowedError extends Error {
 interface RobotsRules {
   allow: string[];
   disallow: string[];
+  /** robots.txt を読めなかった理由（読めないときは安全側に倒して全面禁止にする） */
+  unavailable?: string;
 }
 
 /**
@@ -81,6 +83,11 @@ export function isAllowed(rules: RobotsRules, path: string): boolean {
 }
 
 export interface PoliteFetcherOptions {
+  /**
+   * robots.txt の確認を飛ばす。運営者がプログラムからの API 利用をはっきり認めている公式 API に限って使い、
+   * 理由（根拠）を必ず書くこと。ショップなどのサイトには使わない。
+   */
+  ignoreRobotsTxt?: { reason: string };
   minIntervalMs?: number;
   timeoutMs?: number;
   userAgent?: string;
@@ -96,6 +103,7 @@ export class PoliteFetcher {
   private readonly fetchImpl: typeof fetch;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly now: () => number;
+  private readonly ignoreRobotsTxt: boolean;
   private readonly lastRequestAt = new Map<string, number>();
   private readonly robotsCache = new Map<string, Promise<RobotsRules>>();
   private readonly hostQueue = new Map<string, Promise<unknown>>();
@@ -107,6 +115,7 @@ export class PoliteFetcher {
     this.fetchImpl = opts.fetchImpl ?? fetch;
     this.sleep = opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
     this.now = opts.now ?? Date.now;
+    this.ignoreRobotsTxt = Boolean(opts.ignoreRobotsTxt?.reason);
   }
 
   /** 同じホストへのリクエストを 1 本ずつ、間隔をあけて実行する */
@@ -147,11 +156,11 @@ export class PoliteFetcher {
         try {
           const res = await this.rawFetch(`${origin}/robots.txt`);
           // 404 などで robots.txt が無ければ制限なし。5xx は安全側に倒して全面禁止
-          if (res.status >= 500) return { allow: [], disallow: ["/"] };
+          if (res.status >= 500) return { allow: [], disallow: ["/"], unavailable: `HTTP ${res.status}` };
           if (!res.ok) return { allow: [], disallow: [] };
           return parseRobots(await res.text(), this.userAgent);
-        } catch {
-          return { allow: [], disallow: ["/"] };
+        } catch (e) {
+          return { allow: [], disallow: ["/"], unavailable: e instanceof Error ? e.message : String(e) };
         }
       });
       this.robotsCache.set(origin, p);
@@ -162,8 +171,11 @@ export class PoliteFetcher {
   /** robots.txt を確認したうえで取得する。禁止されていれば RobotsDisallowedError */
   async fetch(url: string, init?: RequestInit): Promise<Response> {
     const u = new URL(url);
-    const rules = await this.robotsFor(u.origin, u.host);
-    if (!isAllowed(rules, u.pathname + u.search)) throw new RobotsDisallowedError(url);
+    if (!this.ignoreRobotsTxt) {
+      const rules = await this.robotsFor(u.origin, u.host);
+      if (rules.unavailable) throw new RobotsDisallowedError(url, rules.unavailable);
+      if (!isAllowed(rules, u.pathname + u.search)) throw new RobotsDisallowedError(url);
+    }
 
     const attempt = () => this.schedule(u.host, () => this.rawFetch(url, init));
     try {
