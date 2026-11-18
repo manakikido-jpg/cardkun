@@ -1,3 +1,4 @@
+import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
@@ -37,6 +38,8 @@ export function createDb(opts: { url?: string; dataDir?: string } = {}): DbHandl
       close: () => client.end(),
     };
   }
+  // PGlite は親フォルダまでは作らないので、初回（server/.data がない状態）に備えて先に作る
+  if (opts.dataDir) mkdirSync(opts.dataDir, { recursive: true });
   const client = new PGlite({ dataDir: opts.dataDir, extensions: { pg_trgm } });
   const db = drizzlePglite(client, { schema });
   return {
