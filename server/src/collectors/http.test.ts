@@ -111,3 +111,40 @@ describe("PoliteFetcher robots.txt exemption", () => {
     await expect(f.fetch("https://x.example/a")).rejects.toThrow(/確認できないため中止.*ECONNRESET/);
   });
 });
+
+describe("PoliteFetcher retries", () => {
+  function sequence(statuses: number[], headers: Record<string, string> = {}) {
+    let i = 0;
+    return (async (input: string | URL | Request) => {
+      if (String(input).endsWith("/robots.txt")) return new Response("", { status: 404 });
+      return new Response("", { status: statuses[Math.min(i++, statuses.length - 1)], headers });
+    }) as typeof fetch;
+  }
+
+  it("retries 503 with growing waits, then succeeds", async () => {
+    const waits: number[] = [];
+    const f = new PoliteFetcher({
+      fetchImpl: sequence([503, 503, 200]),
+      minIntervalMs: 0,
+      sleep: async (ms) => void waits.push(ms),
+    });
+    expect((await f.fetch("https://api.example/x")).status).toBe(200);
+    expect(waits.filter((w) => w > 0)).toEqual([2000, 6000]);
+  });
+
+  it("honors Retry-After", async () => {
+    const waits: number[] = [];
+    const f = new PoliteFetcher({
+      fetchImpl: sequence([429, 200], { "Retry-After": "5" }),
+      minIntervalMs: 0,
+      sleep: async (ms) => void waits.push(ms),
+    });
+    expect((await f.fetch("https://api.example/x")).status).toBe(200);
+    expect(waits.filter((w) => w > 0)).toEqual([5000]);
+  });
+
+  it("gives up after maxRetries and returns the last response", async () => {
+    const f = new PoliteFetcher({ fetchImpl: sequence([503]), minIntervalMs: 0, sleep: async () => undefined });
+    expect((await f.fetch("https://api.example/x")).status).toBe(503);
+  });
+});
